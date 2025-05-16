@@ -74,12 +74,25 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-    # -------- 生成后处理 --------
+    # ------- 生成后处理 -------
     def postprocess_book(self, oeb, opts, log):
         if getattr(self, 'new_cnt', 0) == 0:
-            if AbortRecipe:
-                raise AbortRecipe('No new articles')
-            else:
-                self.abort_recipe_processing('No new articles')
+            # 1) 清空目录与正文
+            oeb.spine  = []
+            oeb.toc    = oeb.toc.__class__()
+            # 2) 写一个占位页面
+            from calibre.ebooks.oeb.base import XHTML, OEBBook
+            html = '<h1>今日暂无新增内容</h1><p>下次再见！</p>'
+            soup = self.index_to_soup(html)
+            href = 'no_new.html'
+            self.add_html_to_oeb(oeb, href, soup)
+            # 3) 改标题，方便在阅读器里区分
+            from datetime import date
+            self.set_title(oeb, f'{self.title}（{date.today():%Y-%m-%d} 无更新）')
+            # ★ 注意：**不要再 raise AbortRecipe**，直接 return 即可
+            return
+    
+        # —— 有新文章照常保存 state ——   
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
+
