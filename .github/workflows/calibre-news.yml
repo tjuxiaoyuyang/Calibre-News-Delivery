@@ -2,8 +2,8 @@ name: Calibre News Delivery
 
 on:
   schedule:
-    # 每天北京时间 07:00（= UTC 23:00）自动跑
-    - cron: '0 23 * * *'
+    # 每日北京时间 07:00 (= UTC 23:00) 运行
+    - cron:  '0 23 * * *'
   workflow_dispatch:      # 允许手动触发
 
 jobs:
@@ -14,39 +14,38 @@ jobs:
     # 0) 检出仓库
     - uses: actions/checkout@v4
 
-    # 1) 还原增量状态缓存
-    - name: Restore seen.json cache
-      uses: actions/cache@v4
+    # 1) 还原增量缓存
+    - uses: actions/cache@v4
       with:
         path: state
         key: seen-json
 
-    # 2) 安装运行脚本所需的 Python 包、Calibre CLI
-    - name: Setup Calibre
-      uses: robinhuettner/setup-calibre@v2
+    # 2) 安装 Calibre CLI（官方 Ubuntu 源）
+    - name: Install Calibre CLI
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y calibre   # 提供 ebook-convert
 
-    # 3) 运行抓取 + 打包（ci.py 是模板仓库自带脚本）
+    # 3) 运行抓取 + 打包
     - name: Run Calibre News
       id: build
       run: |
-        python ci.py
+        python ci.py                      # 模板仓库自带脚本
 
-    # 4) 保存最新增量状态到缓存
-    - name: Save seen.json cache
+    # 4) 保存最新增量缓存
+    - uses: actions/cache/save@v4
       if: steps.build.outcome == 'success'
-      uses: actions/cache/save@v4
       with:
         path: state
         key: seen-json
 
-    # 5) 下载并安装 rclone
-    - name: Setup rclone
-      uses: wei/rclone@v1
+    # 5) 安装 rclone
+    - uses: wei/rclone@v1
       with:
         rclone_conf: ${{ secrets.RCLONE_CONF }}
 
-    # 6) 把 EPUB 复制到 OneDrive /CalibreNews
+    # 6) 复制 EPUB 到 OneDrive
     - name: Copy EPUB to OneDrive
-      if: steps.build.outcome == 'success' && steps.build.outputs.files != ''
+      if: success() && steps.build.outputs.files != ''
       run: |
         rclone copy output/ onedrive:CalibreNews --create-dir --fast-list
