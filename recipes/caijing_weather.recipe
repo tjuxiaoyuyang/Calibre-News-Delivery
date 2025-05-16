@@ -1,30 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os, json
-from calibre.web.feeds.news import BasicNewsRecipe
+from calibre.web.feeds.news import BasicNewsRecipe   # 只保留这一行
 
-# ---------- 兼容导入 AbortRecipe ----------
+# ---------- 兼容旧版 AbortRecipe ----------
 try:
-    from calibre.web.feeds.news import AbortRecipe
-except ImportError:
-    class AbortRecipe(Exception):
-        """Fallback when Calibre version has no AbortRecipe"""
-        pass
+    from calibre.web.feeds.news import AbortRecipe        # Calibre ≤ 6.x
+except ImportError:                                       # Calibre ≥ 7.0
+    AbortRecipe = None
 
-# -------- 增量缓存目录 --------
 STATE_DIR  = 'state'
 os.makedirs(STATE_DIR, exist_ok=True)
 STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
 
 class CaijingWeather(BasicNewsRecipe):
-    # ——— 基本设置 ———
-    title  = u'财经·天气（日增量）'
+    title  = '财经·天气（日增量）'
     oldest_article        = 6
     max_articles_per_feed = 100
     auto_cleanup          = True
     timeout               = 60
     no_stylesheets        = True
-    new_cnt               = 0
 
     feeds = [
         ('半月谈',
@@ -35,9 +30,9 @@ class CaijingWeather(BasicNewsRecipe):
          'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
     ]
 
-    # ——— 初始化 ———
+    # ---------- 初始化 ----------
     def initialize(self):
-        BasicNewsRecipe.initialize(self)
+        super().initialize()
         try:
             with open(STATE_FILE, 'r', encoding='utf-8') as f:
                 self.seen = set(json.load(f))
@@ -46,7 +41,7 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt = 0
         self.log(f'Init OK, seen {len(self.seen)} items')
 
-    # ——— 去重 ———
+    # ---------- 去重 ----------
     def skip_article(self, a):
         gid = a.get('id') or a.get('guid') or a.get('link')
         if gid and gid in self.seen:
@@ -56,9 +51,9 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt += 1
         return False
 
-    # ——— 浏览器 ———
+    # ---------- 浏览器 ----------
     def get_browser(self):
-        br = BasicNewsRecipe.get_browser(self)
+        br = super().get_browser()
         br.set_proxies({})
         br.addheaders += [
             ('User-Agent',
@@ -67,9 +62,13 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-    # ——— 输出 ———
+    # ---------- 生成后处理 ----------
     def postprocess_book(self, oeb, opts, log):
         if self.new_cnt == 0:
-            raise AbortRecipe('No new articles')
+            # Calibre ≥7: 用官方助手；Calibre 6: 仍可抛 AbortRecipe
+            if AbortRecipe:
+                raise AbortRecipe('No new articles')
+            else:
+                self.abort_recipe_processing('No new articles')
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
