@@ -27,10 +27,14 @@ jobs:
         sudo apt-get install -y calibre   # 提供 ebook-convert
 
     # 3) 运行抓取 + 打包
-    - name: Run Calibre News
-      id: build
+    - name: Build EPUB(s)
       run: |
-        python ci.py                      # 模板仓库自带脚本
+        mkdir -p output
+        while IFS=: read -r recipe outname; do
+          echo "Convert $recipe -> $outname"
+          ebook-convert "$recipe" "output/$outname"
+        done < recipe_list.txt
+
 
     # 4) 保存最新增量缓存
     - uses: actions/cache/save@v4
