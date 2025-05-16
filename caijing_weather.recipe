@@ -3,7 +3,7 @@
 import os, json
 from calibre.web.feeds.news import BasicNewsRecipe
 
-STATE_DIR  = 'state'                       # 相对路径
+STATE_DIR  = 'state'
 os.makedirs(STATE_DIR, exist_ok=True)
 STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
 
@@ -15,9 +15,9 @@ class CaijingWeather(BasicNewsRecipe):
     timeout = 60
 
     feeds = [
-        ('半月谈', 'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
-        ('36氪 • 24h 热榜', 'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
-        ('量子位 • 专栏', 'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
+        ('半月谈',            'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
+        ('36氪 • 24h 热榜',    'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
+        ('量子位 • 专栏',      'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
     ]
 
     def initialize(self):
@@ -47,12 +47,9 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-# ……前面内容保持不变……
-
     # ---------- 输出 ----------
-    def postprocess_book(self, oeb, opts, log):   # ← 这里多了 opts, log
+    def postprocess_book(self, oeb, opts, log):
         if self.new_cnt == 0:
             self.abort('No new articles')
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
-
