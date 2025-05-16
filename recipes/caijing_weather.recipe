@@ -1,18 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import os, json
-from calibre.web.feeds.news import BasicNewsRecipe   # 只保留这一行
-
-# ---------- 兼容旧版 AbortRecipe ----------
-try:
-    from calibre.web.feeds.news import AbortRecipe        # Calibre ≤ 6.x
-except ImportError:                                       # Calibre ≥ 7.0
-    AbortRecipe = None
-
-STATE_DIR  = 'state'
-os.makedirs(STATE_DIR, exist_ok=True)
-STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
-
 class CaijingWeather(BasicNewsRecipe):
     title  = '财经·天气（日增量）'
     oldest_article        = 6
@@ -21,13 +6,10 @@ class CaijingWeather(BasicNewsRecipe):
     timeout               = 60
     no_stylesheets        = True
 
+    new_cnt = 0           # <—— 关键：放在这里，实例无论如何都有这个属性
+
     feeds = [
-        ('半月谈',
-         'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
-        ('36氪 • 24h 热榜',
-         'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
-        ('量子位 • 专栏',
-         'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
+        # ...
     ]
 
     # ---------- 初始化 ----------
@@ -38,7 +20,7 @@ class CaijingWeather(BasicNewsRecipe):
                 self.seen = set(json.load(f))
         except Exception:
             self.seen = set()
-        self.new_cnt = 0
+        self.new_cnt = 0   # 仍然重置，保持既有逻辑
         self.log(f'Init OK, seen {len(self.seen)} items')
 
     # ---------- 去重 ----------
@@ -51,21 +33,11 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt += 1
         return False
 
-    # ---------- 浏览器 ----------
-    def get_browser(self):
-        br = super().get_browser()
-        br.set_proxies({})
-        br.addheaders += [
-            ('User-Agent',
-             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'),
-            ('Accept-Encoding', 'identity'),
-        ]
-        return br
-
     # ---------- 生成后处理 ----------
     def postprocess_book(self, oeb, opts, log):
-        if self.new_cnt == 0:
-            # Calibre ≥7: 用官方助手；Calibre 6: 仍可抛 AbortRecipe
+        # 保险起见再获取一次
+        cnt = getattr(self, 'new_cnt', 0)
+        if cnt == 0:
             if AbortRecipe:
                 raise AbortRecipe('No new articles')
             else:
