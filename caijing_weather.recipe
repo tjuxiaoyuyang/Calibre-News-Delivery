@@ -47,8 +47,12 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-    def postprocess_book(self, oeb):
+# ……前面内容保持不变……
+
+    # ---------- 输出 ----------
+    def postprocess_book(self, oeb, opts, log):   # ← 这里多了 opts, log
         if self.new_cnt == 0:
             self.abort('No new articles')
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
+
