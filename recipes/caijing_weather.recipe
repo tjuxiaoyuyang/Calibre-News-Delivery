@@ -1,30 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+财经·天气（日增量） for Calibre ≥ 7.x
+- 有新增文章时正常生成 EPUB 并更新 state
+- 没有新增文章时抛 AbortRecipe，让 ebook-convert 退出码 = 1
+  → CI 层捕获后视为“正常结束”
+"""
 import os, json
 from calibre.web.feeds.news import BasicNewsRecipe
 
 # ---------- 兼容旧版 AbortRecipe ----------
 try:
-    from calibre.web.feeds.news import AbortRecipe    # Calibre ≤ 6.x
-except ImportError:                                   # Calibre ≥ 7.x
+    from calibre.web.feeds.news import AbortRecipe          # Calibre ≤ 6.x
+except ImportError:                                         # Calibre ≥ 7.x
     AbortRecipe = None
 
+# ---------- 增量缓存 ----------
 STATE_DIR  = 'state'
 os.makedirs(STATE_DIR, exist_ok=True)
 STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
 
 class CaijingWeather(BasicNewsRecipe):
-    # -------- 基本属性 --------
-    title  = '财经·天气（日增量）'
-    oldest_article        = 6
-    max_articles_per_feed = 100
-    auto_cleanup          = True
-    timeout               = 60
-    no_stylesheets        = True
+    # ===== 基本属性 =====
+    title                  = '财经·天气（日增量）'
+    oldest_article         = 6            # 仅抓最近 6 天
+    max_articles_per_feed  = 100
+    auto_cleanup           = True
+    timeout                = 60
+    no_stylesheets         = True
+    ignore_failed_feeds    = True         # 单个源挂了也继续
+    tries                  = 3            # 抓取重试
+    sleep                  = 2
 
-    new_cnt = 0      # 防止 AttributeError
+    new_cnt = 0                           # 防止 AttributeError
 
-    # 这里仍然保留类级 feeds，方便 IDE / 旧版 Calibre
     feeds = [
         ('半月谈',
          'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
@@ -34,15 +43,11 @@ class CaijingWeather(BasicNewsRecipe):
          'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
     ]
 
-    # -------- 关键：覆写 get_feeds() --------
+    # ===== 关键：覆写 get_feeds()，绕过 Calibre 7 清空 feeds 的行为 =====
     def get_feeds(self):
-        """
-        Calibre ≥7 会把 self.feeds 清空，这里显式返回类属性，
-        保证 parse_feeds() 能拿到正确列表。
-        """
         return list(self.__class__.feeds)
 
-    # -------- 初始化 --------
+    # ===== 初始化 =====
     def initialize(self):
         super().initialize()
         try:
@@ -53,7 +58,7 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt = 0
         self.log(f'Init OK, seen {len(self.seen)} items')
 
-    # -------- 去重 --------
+    # ===== 去重 =====
     def skip_article(self, a):
         gid = a.get('id') or a.get('guid') or a.get('link')
         if gid and gid in self.seen:
@@ -63,36 +68,27 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt += 1
         return False
 
-    # -------- 浏览器定制 --------
+    # ===== 浏览器自定义 =====
     def get_browser(self):
         br = super().get_browser()
         br.set_proxies({})
         br.addheaders += [
             ('User-Agent',
-             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'),
+             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+             'Chrome/124 Safari/537.36'),
             ('Accept-Encoding', 'identity'),
         ]
         return br
 
-    # ------- 生成后处理 -------
+    # ===== 生成后处理 =====
     def postprocess_book(self, oeb, opts, log):
         if getattr(self, 'new_cnt', 0) == 0:
-            # 1) 清空目录与正文
-            oeb.spine  = []
-            oeb.toc    = oeb.toc.__class__()
-            # 2) 写一个占位页面
-            from calibre.ebooks.oeb.base import XHTML, OEBBook
-            html = '<h1>今日暂无新增内容</h1><p>下次再见！</p>'
-            soup = self.index_to_soup(html)
-            href = 'no_new.html'
-            self.add_html_to_oeb(oeb, href, soup)
-            # 3) 改标题，方便在阅读器里区分
-            from datetime import date
-            self.set_title(oeb, f'{self.title}（{date.today():%Y-%m-%d} 无更新）')
-            # ★ 注意：**不要再 raise AbortRecipe**，直接 return 即可
-            return
-    
-        # —— 有新文章照常保存 state ——   
-        with open(STATE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(list(self.seen), f)
-
+            # —— 无新增 —— 直接退出，交给 CI 判断
+            if AbortRecipe:                         # Calibre ≤ 6
+                raise AbortRecipe('No new articles')
+            else:                                   # Calibre ≥ 7
+                self.abort_recipe_processing('No new articles')
+        else:
+            # —— 有新增 —— 保存 state
+            with open(STATE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(list(self.seen), f)
