@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import os, json
+from calibre.web.feeds.news import BasicNewsRecipe
+
+# ------- 增量缓存目录（相对仓库根，GitHub Runner 可写） -------
+STATE_DIR = 'state'
+os.makedirs(STATE_DIR, exist_ok=True)
+STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
+
+class CaijingWeather(BasicNewsRecipe):
+    new_cnt = 0                                # 保险：即使 init 出错不报 AttributeError
+    title   = u'财经·天气（日增量）'
+    oldest_article        = 6                  # 仅抓最近 6 小时
+    max_articles_per_feed = 100
+    auto_cleanup          = True
+    timeout               = 60
+    no_stylesheets        = True               # 去掉原站 CSS，加快 33 % 阶段
+
+    feeds = [
+        ('半月谈',
+         'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
+        ('36氪 • 24h 热榜',
+         'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
+        ('量子位 • 专栏',
+         'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
+    ]
+
+    # ---------------- 初始化：读入已抓列表 ----------------
+    def initialize(self):
+        BasicNewsRecipe.initialize(self)
+        try:
+            with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                self.seen = set(json.load(f))
+        except Exception:
+            self.seen = set()
+        self.new_cnt = 0
+        self.log(f'Init OK, seen {len(self.seen)} items')
+
+    # ---------------- 去重 ----------------
+    def skip_article(self, a):
+        gid = a.get('id') or a.get('guid') or a.get('link')
+        if gid and gid in self.seen:
+            return True
+        if gid:
+            self.seen.add(gid)
+        self.new_cnt += 1
+        return False
+
+    # ---------------- 浏览器：绝不继承系统代理 ----------------
+    def get_browser(self):
+        br = BasicNewsRecipe.get_browser(self)
+        br.set_proxies({})
+        br.addheaders += [
+            ('User-Agent',
+             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+             'Chrome/124 Safari/537.36'),
+            ('Accept-Encoding', 'identity'),
+        ]
+        return br
+
+    # ---------------- 输出 ----------------
+    def postprocess_book(self, oeb, opts, log):
+        if self.new_cnt == 0:
+            self.abort('No new articles')
+        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(list(self.seen), f)
