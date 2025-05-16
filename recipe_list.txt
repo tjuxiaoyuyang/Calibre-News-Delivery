@@ -1,1 +1,2 @@
-caijing_weather.recipe:财经·天气.epub
+recipes/caijing_weather.recipe:财经·天气.epub
+
