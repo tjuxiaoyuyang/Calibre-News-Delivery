@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os, json
-from calibre.web.feeds.news import BasicNewsRecipe, AbortRecipe
+from calibre.web.feeds.news import BasicNewsRecipe
+
+# ---------- 兼容导入 AbortRecipe ----------
+try:
+    from calibre.web.feeds.news import AbortRecipe
+except ImportError:
+    class AbortRecipe(Exception):
+        """Fallback when Calibre version has no AbortRecipe"""
+        pass
 
 # -------- 增量缓存目录 --------
 STATE_DIR  = 'state'
@@ -11,12 +19,12 @@ STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
 class CaijingWeather(BasicNewsRecipe):
     # ——— 基本设置 ———
     title  = u'财经·天气（日增量）'
-    oldest_article        = 6          # 只抓最近 6 小时
+    oldest_article        = 6
     max_articles_per_feed = 100
     auto_cleanup          = True
     timeout               = 60
     no_stylesheets        = True
-    new_cnt               = 0          # 保险：即使 init 出错也不抛 AttributeError
+    new_cnt               = 0
 
     feeds = [
         ('半月谈',
@@ -48,10 +56,10 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt += 1
         return False
 
-    # ——— 浏览器配置 ———
+    # ——— 浏览器 ———
     def get_browser(self):
         br = BasicNewsRecipe.get_browser(self)
-        br.set_proxies({})  # 忽略系统代理
+        br.set_proxies({})
         br.addheaders += [
             ('User-Agent',
              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'),
@@ -59,13 +67,9 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-    # ——— 生成后处理 ———
+    # ——— 输出 ———
     def postprocess_book(self, oeb, opts, log):
         if self.new_cnt == 0:
-            self.abort('No new articles')        # 仍用旧写法
+            raise AbortRecipe('No new articles')
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
-
-    # ——— 兼容钩子：在 Calibre 7+ 将 self.abort() 映射到 AbortRecipe ———
-    def abort(self, msg=''):
-        raise AbortRecipe(msg)
