@@ -1,4 +1,20 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import os, json
+from calibre.web.feeds.news import BasicNewsRecipe
+
+# ---------- 兼容旧版 AbortRecipe ----------
+try:
+    from calibre.web.feeds.news import AbortRecipe    # Calibre ≤ 6.x
+except ImportError:                                   # Calibre ≥ 7.x
+    AbortRecipe = None
+
+STATE_DIR  = 'state'
+os.makedirs(STATE_DIR, exist_ok=True)
+STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
+
 class CaijingWeather(BasicNewsRecipe):
+    # -------- 基本属性 --------
     title  = '财经·天气（日增量）'
     oldest_article        = 6
     max_articles_per_feed = 100
@@ -6,13 +22,27 @@ class CaijingWeather(BasicNewsRecipe):
     timeout               = 60
     no_stylesheets        = True
 
-    new_cnt = 0           # <—— 关键：放在这里，实例无论如何都有这个属性
+    new_cnt = 0      # 防止 AttributeError
 
+    # 这里仍然保留类级 feeds，方便 IDE / 旧版 Calibre
     feeds = [
-        # ...
+        ('半月谈',
+         'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
+        ('36氪 • 24h 热榜',
+         'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
+        ('量子位 • 专栏',
+         'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
     ]
 
-    # ---------- 初始化 ----------
+    # -------- 关键：覆写 get_feeds() --------
+    def get_feeds(self):
+        """
+        Calibre ≥7 会把 self.feeds 清空，这里显式返回类属性，
+        保证 parse_feeds() 能拿到正确列表。
+        """
+        return list(self.__class__.feeds)
+
+    # -------- 初始化 --------
     def initialize(self):
         super().initialize()
         try:
@@ -20,10 +50,10 @@ class CaijingWeather(BasicNewsRecipe):
                 self.seen = set(json.load(f))
         except Exception:
             self.seen = set()
-        self.new_cnt = 0   # 仍然重置，保持既有逻辑
+        self.new_cnt = 0
         self.log(f'Init OK, seen {len(self.seen)} items')
 
-    # ---------- 去重 ----------
+    # -------- 去重 --------
     def skip_article(self, a):
         gid = a.get('id') or a.get('guid') or a.get('link')
         if gid and gid in self.seen:
@@ -33,11 +63,20 @@ class CaijingWeather(BasicNewsRecipe):
         self.new_cnt += 1
         return False
 
-    # ---------- 生成后处理 ----------
+    # -------- 浏览器定制 --------
+    def get_browser(self):
+        br = super().get_browser()
+        br.set_proxies({})
+        br.addheaders += [
+            ('User-Agent',
+             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'),
+            ('Accept-Encoding', 'identity'),
+        ]
+        return br
+
+    # -------- 生成后处理 --------
     def postprocess_book(self, oeb, opts, log):
-        # 保险起见再获取一次
-        cnt = getattr(self, 'new_cnt', 0)
-        if cnt == 0:
+        if getattr(self, 'new_cnt', 0) == 0:
             if AbortRecipe:
                 raise AbortRecipe('No new articles')
             else:
