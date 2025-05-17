@@ -3,11 +3,26 @@ set -eo pipefail
 
 mkdir -p output
 
-# 允许 ebook-convert 退出码 0（成功）或 1（AbortRecipe=无新文章）
-ebook-convert recipes/caijing_weather.recipe \
-              "output/财经·天气.epub" 2>&1 || status=$?
+# 逐行读取，忽略空行和以 # 开头的注释行
+grep -Ev '^\s*($|#)' recipe_list.txt |
+while IFS=: read -r recipe outname; do
+  # —— 基本校验 ——
+  if [[ -z "$recipe" || -z "$outname" ]]; then
+    echo "::warning ::跳过格式不完整的行：'$recipe:$outname'"
+    continue
+  fi
 
-if [[ -n "$status" && "$status" -ne 1 ]]; then
-  # 只有非 0/1 才是真异常，结束 CI
-  exit "$status"
-fi
+  echo "Convert $recipe -> $outname"
+  set +e
+  ebook-convert "$recipe" "output/$outname"
+  code=$?
+  set -e
+
+  case $code in
+    0)  echo "✓ Success: $outname";;
+    1)  echo "ℹ 无新文章：$recipe";;      # AbortRecipe
+    *)  echo "::error ::ebook-convert exit $code on $recipe"
+        exit "$code"
+        ;;
+  esac
+done
