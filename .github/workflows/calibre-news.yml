@@ -66,6 +66,7 @@ jobs:
 
     # 6) 复制 EPUB 到 OneDrive
     - name: Copy EPUB to OneDrive
-      if: success() && steps.build.outputs.files != ''
+      if: success()
       run: |
-        rclone copy output/ onedrive:CalibreNews --create-dir --fast-list
+        rclone copy output/ onedrive:CalibreNews --fast-list
+
