@@ -41,6 +41,8 @@ class CaijingWeather(BasicNewsRecipe):
          'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
         ('量子位 • 专栏',
          'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
+        ('华尔街见闻 - 实时快讯 - 要闻',
+         'https://rsshub.app/wallstreetcn/live')
     ]
 
     # ===== 关键：覆写 get_feeds()，绕过 Calibre 7 清空 feeds 的行为 =====
