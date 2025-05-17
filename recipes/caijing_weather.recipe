@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 import os, json
 from calibre.web.feeds.news import BasicNewsRecipe
+try:
+    from calibre.web.feeds.news import AbortRecipe
+except ImportError:
+    AbortRecipe = None
 
 # ---------- 找到固定的 state 路径 ----------
 try:
