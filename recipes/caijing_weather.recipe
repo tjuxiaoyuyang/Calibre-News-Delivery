@@ -28,7 +28,8 @@ class CaijingWeather(BasicNewsRecipe):
     auto_cleanup, timeout = True, 60
     no_stylesheets        = True
     new_cnt = 0
-
+    seen    = set()   # 防止 AttributeError: no attribute 'seen'
+   
     feeds = [   # ← 你给出的 14 个 RSS 源
         ('36氪 • 24h 热榜',
          'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
@@ -52,16 +53,13 @@ class CaijingWeather(BasicNewsRecipe):
     def get_feeds(self):                 # Calibre 7 兼容
         return list(self.__class__.feeds)
 
-    def initialize(self):
-        super().initialize()
-        try:
-            with open(STATE_FILE, 'r', encoding='utf-8') as f:
-                self.seen = set(json.load(f))
-        except Exception:
-            self.seen = set()
-        self.new_cnt = 0
-        self.log(f'Init OK, seen {len(self.seen)} items; cwd={os.getcwd()}')
-
+     def initialize(self):
+            super().initialize()
+            try:
+                with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                    self.seen = set(json.load(f))
+            except Exception:
+                self.seen = set()
     # ----- 关键：改进去重 -----
     def skip_article(self, a):
         # --- 调试（只打印前 10 次） ---
@@ -97,19 +95,16 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-    def postprocess_book(self, oeb, opts, log):
-        # 统计真正进入 spine 的条目（封面 + 导读页之外）
-        content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
-        real_cnt = len(content_items)
+     def postprocess_book(self, oeb, opts, log):
+            # real_cnt 兜底的新逻辑
+            content_items = [i for i in oeb.spine if i.id not in ('cover','masthead')]
+            real_cnt = len(content_items)
+            log.info(f"★ DEBUG: new_cnt={self.new_cnt}, real_cnt={real_cnt}")
     
-        log.info(f"★ DEBUG: new_cnt={getattr(self, 'new_cnt', 0)}, real_cnt={real_cnt}")
-    
-        if real_cnt == 0:         # 既无 new_cnt 又无正文 → 视为“无新文章”
-            if AbortRecipe:
-                raise AbortRecipe('No new articles')
-            else:
-                self.abort_recipe_processing('No new articles')
-    
-        # —— 有文章才写缓存 —— 
+            if real_cnt == 0:
+                # …AbortRecipe or abort_recipe_processing…
+                return
+
+        # —— 写缓存 ——  
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
