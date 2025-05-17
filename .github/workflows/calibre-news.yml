@@ -52,10 +52,16 @@ jobs:
         path: state
         key: seen-json
 
-    # 5) 安装 rclone
-    - uses: wei/rclone@v1
+# … 前面步骤保持不变 …
+
+    # 5) 安装 rclone CLI Action 并复制文件
+    - name: Copy EPUB to OneDrive
+      if: success() && steps.build.outputs.files != ''
+      uses: wei/rclone@v1
+      env:
+        RCLONE_CONFIG: ${{ secrets.RCLONE_CONF }}
       with:
-        rclone_conf: ${{ secrets.RCLONE_CONF }}
+        args: copy output/ onedrive:CalibreNews --create-dir --fast-list
 
     # 6) 复制 EPUB 到 OneDrive
     - name: Copy EPUB to OneDrive
