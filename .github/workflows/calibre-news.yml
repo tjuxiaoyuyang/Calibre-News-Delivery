@@ -57,7 +57,7 @@ jobs:
 
     # 5) 安装 rclone CLI Action 并复制文件
     - name: Copy EPUB to OneDrive
-      if: success() && steps.build.outputs.files != ''
+      if: success()
       uses: wei/rclone@v1
       env:
         RCLONE_CONFIG: ${{ secrets.RCLONE_CONF }}
