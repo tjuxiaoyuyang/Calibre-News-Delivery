@@ -71,11 +71,12 @@ jobs:
       - name: Print rclone.conf (first 10 lines)
         run: head -10 rclone.conf
       
-      # 8) 上传 EPUB 到 OneDrive
-      - name: Copy EPUB to OneDrive
-        if: success()
-        run: |
-          ls -l output || true
-          rclone --config rclone.conf copy output/ myonedrive:CalibreNews --fast-list --verbose
+      - name: 上传所有EPUB到 GitHub Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-epubs
+          path: output/*.epub
+
+
 
 
