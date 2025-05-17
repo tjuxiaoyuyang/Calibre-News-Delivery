@@ -100,7 +100,7 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-    def postprocess_book(self, oeb, opts, log):
+def postprocess_book(self, oeb, opts, log):
     # 统计真正进入 spine 的条目（封面+导读页之外）
     content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
     real_cnt = len(content_items)
