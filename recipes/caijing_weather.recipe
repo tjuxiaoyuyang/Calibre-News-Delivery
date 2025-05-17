@@ -1,83 +1,51 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-财经·天气（日增量） for Calibre ≥ 7.x
-- 有新增文章时正常生成 EPUB 并更新 state
-- 没有新增文章时抛 AbortRecipe，让 ebook-convert 退出码 = 1
-  → CI 层捕获后视为“正常结束”
-"""
 import os, json
 from calibre.web.feeds.news import BasicNewsRecipe
 
-# ---------- 兼容旧版 AbortRecipe ----------
 try:
-    from calibre.web.feeds.news import AbortRecipe          # Calibre ≤ 6.x
-except ImportError:                                         # Calibre ≥ 7.x
+    from calibre.web.feeds.news import AbortRecipe
+except ImportError:
     AbortRecipe = None
 
-# ---------- 增量缓存 ----------
-STATE_DIR  = 'state'
-os.makedirs(STATE_DIR, exist_ok=True)
+BASE       = os.path.dirname(__file__)      # ← 保证 state 路径固定
+STATE_DIR  = os.path.join(BASE, 'state')
 STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
+os.makedirs(STATE_DIR, exist_ok=True)
 
 class CaijingWeather(BasicNewsRecipe):
-    # ===== 基本属性 =====
-    title                  = '财经·天气（日增量）'
-    oldest_article         = 6            # 仅抓最近 6 天
-    max_articles_per_feed  = 2000
-    auto_cleanup           = True
-    timeout                = 60
-    no_stylesheets         = True
-    ignore_failed_feeds    = True         # 单个源挂了也继续
-    tries                  = 3            # 抓取重试
-    sleep                  = 2
+    title  = '财经·天气（日增量）'
+    oldest_article        = 6
+    max_articles_per_feed = 100
+    ignore_failed_feeds   = True
+    tries, sleep          = 3, 2
+    auto_cleanup, timeout = True, 60
+    no_stylesheets        = True
+    new_cnt = 0
 
-    new_cnt = 0                           # 防止 AttributeError
-
-class CaijingWeather(BasicNewsRecipe):
-    # …前略…
-
-    feeds = [
+    feeds = [   # ← 你给出的 14 个 RSS 源
         ('36氪 • 24h 热榜',
          'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
-        ('第一财经 • 最新',
-         'https://rsshub.app/yicai/latest'),
-        ('华尔街见闻 • 实时快讯-要闻',
-         'https://rsshub.app/wallstreetcn/live'),
-        ('工信部 • 文件公示',
-         'https://rsshub.app/gov/miit/wjgs'),
-        ('量子位 • 知乎专栏',
-         'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
-        ('虎嗅网 • 全部',
-         'https://rsshub.app/huxiu/article'),
-        ('雪球 • 今日话题',
-         'http://xueqiu.com/hots/topic/rss'),
-        ('Air-Level • 天津监测',
-         'https://rsshub.app/air-level/air/tianjin'),
-        ('Air-Level • 全国最优排行',
-         'https://rsshub.app/air-level/rank/best'),
-        ('香港天文台 • 全球地震',
-         'https://rsshub.app/hko/weather'),
-        ('天津天气 • 未来三天',
-         'https://rsshub.app/qweather/3days/天津'),
-        ('国家气象中心 • 日降水预报',
-         'https://rsshub.app/ncc-cma/cmdp/image/RPJQWQYZ'),
-        ('国家气象中心 • 部分云量预报',
-         'https://rsshub.app/ncc-cma/cmdp/image/BYYLJSLJPZYQHZ'),
-        ('东方财富 • 研究策略报告',
-         'https://rsshub.app/eastmoney/report/strategyreport'),
-        ('人民银行 • 工作论文',
-         'https://rsshub.app/gov/pbc/gzlw'),
-        ('前瞻网 • 分析师专栏',
-         'https://rsshub.app/qianzhan/analyst/column/all'),
+        ('第一财经 • 最新', 'https://rsshub.app/yicai/latest'),
+        ('华尔街见闻 • 实时快讯-要闻', 'https://rsshub.app/wallstreetcn/live'),
+        ('工信部 • 文件公示', 'https://rsshub.app/gov/miit/wjgs'),
+        ('量子位 • 知乎专栏', 'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
+        ('虎嗅网 • 全部', 'https://rsshub.app/huxiu/article'),
+        ('雪球 • 今日话题', 'http://xueqiu.com/hots/topic/rss'),
+        ('Air-Level • 天津监测', 'https://rsshub.app/air-level/air/tianjin'),
+        ('Air-Level • 全国最优排行', 'https://rsshub.app/air-level/rank/best'),
+        ('香港天文台 • 全球地震', 'https://rsshub.app/hko/weather'),
+        ('天津天气 • 未来三天', 'https://rsshub.app/qweather/3days/天津'),
+        ('国家气象中心 • 日降水预报', 'https://rsshub.app/ncc-cma/cmdp/image/RPJQWQYZ'),
+        ('国家气象中心 • 部分云量预报', 'https://rsshub.app/ncc-cma/cmdp/image/BYYLJSLJPZYQHZ'),
+        ('东方财富 • 研究策略报告', 'https://rsshub.app/eastmoney/report/strategyreport'),
+        ('人民银行 • 工作论文', 'https://rsshub.app/gov/pbc/gzlw'),
+        ('前瞻网 • 分析师专栏', 'https://rsshub.app/qianzhan/analyst/column/all'),
     ]
 
-
-    # ===== 关键：覆写 get_feeds()，绕过 Calibre 7 清空 feeds 的行为 =====
-    def get_feeds(self):
+    def get_feeds(self):                 # Calibre 7 兼容
         return list(self.__class__.feeds)
 
-    # ===== 初始化 =====
     def initialize(self):
         super().initialize()
         try:
@@ -86,39 +54,35 @@ class CaijingWeather(BasicNewsRecipe):
         except Exception:
             self.seen = set()
         self.new_cnt = 0
-        self.log(f'Init OK, seen {len(self.seen)} items')
+        self.log(f'Init OK, seen {len(self.seen)} items; cwd={os.getcwd()}')
 
-    # ===== 去重 =====
+    # ----- 关键：改进去重 -----
     def skip_article(self, a):
         gid = a.get('id') or a.get('guid') or a.get('link')
-        if gid and gid in self.seen:
+        if not gid:                      # fallback
+            gid = f"{a.get('title')}||{a.get('published') or a.get('updated')}"
+        if gid in self.seen:
             return True
-        if gid:
-            self.seen.add(gid)
+        self.seen.add(gid)
         self.new_cnt += 1
         return False
+    # -------------------------
 
-    # ===== 浏览器自定义 =====
     def get_browser(self):
         br = super().get_browser()
         br.set_proxies({})
         br.addheaders += [
-            ('User-Agent',
-             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-             'Chrome/124 Safari/537.36'),
+            ('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                           'AppleWebKit/537.36 Chrome/124 Safari/537.36'),
             ('Accept-Encoding', 'identity'),
         ]
         return br
 
-    # ===== 生成后处理 =====
     def postprocess_book(self, oeb, opts, log):
         if getattr(self, 'new_cnt', 0) == 0:
-            # —— 无新增 —— 直接退出，交给 CI 判断
-            if AbortRecipe:                         # Calibre ≤ 6
+            if AbortRecipe:
                 raise AbortRecipe('No new articles')
-            else:                                   # Calibre ≥ 7
+            else:
                 self.abort_recipe_processing('No new articles')
-        else:
-            # —— 有新增 —— 保存 state
-            with open(STATE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(list(self.seen), f)
+        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(list(self.seen), f)
