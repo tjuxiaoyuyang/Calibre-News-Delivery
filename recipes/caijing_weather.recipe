@@ -53,6 +53,7 @@ class CaijingWeather(BasicNewsRecipe):
         ('东方财富 • 研究策略报告', 'https://rsshub.app/eastmoney/report/strategyreport'),
         ('人民银行 • 工作论文', 'https://rsshub.app/gov/pbc/gzlw'),
         ('前瞻网 • 分析师专栏', 'https://rsshub.app/qianzhan/analyst/column/all'),
+        ('知乎收藏', 'https://r.hhbboo.com/users/1/web_requests/497/zhihu-mgwft-dt-eifh2oduyf3i23ek.xml'),
     ]
 
     def get_feeds(self):
