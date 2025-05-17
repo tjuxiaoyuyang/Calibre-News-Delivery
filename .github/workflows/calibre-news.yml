@@ -59,11 +59,12 @@ jobs:
         run: |
           sudo apt-get install -y rclone
 
-      - name: Check RCLONE_CONFIG env
-        run: |
-          echo "$RCLONE_CONFIG" | head -20
+      - name: Print RCLONE_CONFIG (first 10 lines, secret masked)
+        run: echo "$RCLONE_CONFIG" | head -10
         env:
           RCLONE_CONFIG: ${{ secrets.RCLONE_CONF }}
+
+
 
       - name: Copy EPUB to OneDrive
         if: success()
