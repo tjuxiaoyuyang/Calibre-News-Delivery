@@ -25,7 +25,7 @@ class CaijingWeather(BasicNewsRecipe):
     # —— 元信息 —— 
     title                  = '财经·天气（日增量）'
     oldest_article         = 6
-    max_articles_per_feed  = 1000
+    max_articles_per_feed  = 10000
     ignore_failed_feeds    = True
     tries, sleep           = 3, 2
     auto_cleanup, timeout  = True, 60
