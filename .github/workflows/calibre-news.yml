@@ -58,20 +58,24 @@ jobs:
       - name: Install rclone
         run: |
           sudo apt-get install -y rclone
-
-      - name: Print RCLONE_CONFIG (first 10 lines, secret masked)
-        run: echo "$RCLONE_CONFIG" | head -10
+      
+      # 6) 输出 RCLONE_CONFIG 到文件
+      - name: Write rclone.conf from secret
+        run: |
+          echo "$RCLONE_CONFIG" > rclone.conf
+      
         env:
           RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
-
-
-
+      
+      # 7) 打印前 10 行，调试用，可省略
+      - name: Print rclone.conf (first 10 lines)
+        run: head -10 rclone.conf
+      
+      # 8) 上传 EPUB 到 OneDrive
       - name: Copy EPUB to OneDrive
         if: success()
         run: |
           ls -l output || true
-          rclone copy output/ myonedrive:CalibreNews --fast-list --verbose
-        env:
-          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+          rclone --config rclone.conf copy output/ myonedrive:CalibreNews --fast-list --verbose
 
 
