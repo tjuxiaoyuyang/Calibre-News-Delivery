@@ -3,15 +3,17 @@
 import os, json
 from calibre.web.feeds.news import BasicNewsRecipe
 
+# ---------- 找到固定的 state 路径 ----------
 try:
-    from calibre.web.feeds.news import AbortRecipe
-except ImportError:
-    AbortRecipe = None
+    BASE = os.path.abspath(os.path.dirname(__file__))   # 常规情况
+except NameError:                                       # __file__ 不存在
+    BASE = os.getcwd()                                  # Calibre exec() 情况
+# -------------------------------------------
 
-BASE       = os.path.dirname(__file__)      # ← 保证 state 路径固定
 STATE_DIR  = os.path.join(BASE, 'state')
 STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
 os.makedirs(STATE_DIR, exist_ok=True)
+
 
 class CaijingWeather(BasicNewsRecipe):
     title  = '财经·天气（日增量）'
