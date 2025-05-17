@@ -76,4 +76,44 @@ class CaijingWeather(BasicNewsRecipe):
         if self._dbg_cnt < 10:
             self.log(f"DBG GID[{self._dbg_cnt}] title='{a.get('title')[:30]}' "
                      f"link={a.get('link')}")
-            self.
+            self._dbg_cnt += 1
+
+        # —— 拼唯一键：URL + 发布日期 —— 
+        date = a.get('published') or a.get('updated') or a.get('pubDate') or ''
+        url  = a.get('link') or a.get('id') or a.get('guid') or ''
+        gid  = f"{url}||{date}" if date else f"{url}||{a.get('title')}"
+
+        if gid in self.seen:
+            return True
+        self.seen.add(gid)
+        self.new_cnt += 1
+        return False
+
+    def get_browser(self):
+        br = super().get_browser()
+        br.set_proxies({})
+        br.addheaders += [
+            ('User-Agent',
+             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+             'Chrome/124 Safari/537.36'),
+            ('Accept-Encoding', 'identity'),
+        ]
+        return br
+
+    def postprocess_book(self, oeb, opts, log):
+        # —— 兜底：检查实际收录章节数 —— 
+        content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
+        real_cnt = len(content_items)
+        log.info(f"★ DEBUG: new_cnt={self.new_cnt}, real_cnt={real_cnt}")
+
+        if real_cnt == 0:
+            # 无新增，优雅退出
+            if AbortRecipe:
+                raise AbortRecipe('No new articles')
+            else:
+                self.abort_recipe_processing('No new articles')
+            return
+
+        # 有文章则写入 seen.json
+        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(list(self.seen), f)
