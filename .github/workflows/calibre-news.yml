@@ -29,19 +29,8 @@ jobs:
     # 3) 运行抓取 + 打包
     - name: Build EPUB(s)
       run: |
-        set -eo pipefail
-        mkdir -p output
-        while IFS=: read -r recipe outname; do
-          echo "Convert $recipe -> $outname"
-          set +e
-          ebook-convert "$recipe" "output/$outname"
-          code=$?
-          set -e
-          if [ "$code" -ne 0 ] && [ "$code" -ne 1 ]; then
-            echo "::error ::ebook-convert exit $code"
-            exit "$code"          # 仅非 0/1 时让 CI 失败
-          fi
-        done < recipe_list.txt
+        chmod +x build.sh
+        ./build.sh
 
 
 
