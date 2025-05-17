@@ -64,14 +64,19 @@ class CaijingWeather(BasicNewsRecipe):
 
     # ----- 关键：改进去重 -----
     def skip_article(self, a):
-        gid = a.get('id') or a.get('guid') or a.get('link')
-        if not gid:                      # fallback
-            gid = f"{a.get('title')}||{a.get('published') or a.get('updated')}"
+        # 发布时间字段：published / updated / pubDate
+        date = a.get('published') or a.get('updated') or a.get('pubDate') or ''
+        url  = a.get('link') or a.get('id') or a.get('guid') or ''
+        title = a.get('title') or ''
+        # ---- 关键改动：把 URL 和日期都放进 gid ----
+        gid = f"{url}||{date}" if date else f"{url}||{title}"
+        # ------------------------------------------
         if gid in self.seen:
             return True
         self.seen.add(gid)
         self.new_cnt += 1
         return False
+
     # -------------------------
 
     def get_browser(self):
