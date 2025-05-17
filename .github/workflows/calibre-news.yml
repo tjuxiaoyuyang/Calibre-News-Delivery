@@ -56,11 +56,10 @@ jobs:
 
 
     # 5) 安装 rclone CLI Action 并复制文件
-     - name: Copy EPUB to OneDrive
+      - name: Copy EPUB to OneDrive
         if: success()
         run: |
           rclone copy output/ onedrive:CalibreNews --fast-list --verbose
         env:
           RCLONE_CONFIG: ${{ secrets.RCLONE_CONF }}
-
 
