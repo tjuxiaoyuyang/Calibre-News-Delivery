@@ -64,26 +64,25 @@ class CaijingWeather(BasicNewsRecipe):
 
     # ----- 关键：改进去重 -----
     def skip_article(self, a):
-        # ① 生成 gid
+        # --- 调试（只打印前 10 次） ---
+        if not hasattr(self, '_dbg_cnt'):
+            self._dbg_cnt = 0
+        if self._dbg_cnt < 10:
+            self.log(f"DBG GID[{self._dbg_cnt}] title='{a.get('title')[:40]}' link={a.get('link')}")
+            self._dbg_cnt += 1
+        # ------------------------------
+    
         date  = a.get('published') or a.get('updated') or a.get('pubDate') or ''
         url   = a.get('link') or a.get('id') or a.get('guid') or ''
         title = a.get('title') or ''
         gid   = f"{url}||{date}" if date else f"{url}||{title}"
     
-        # ---------- 调试：仅打印前 10 个 ----------
-        if not hasattr(self, '_dbg_cnt'):
-            self._dbg_cnt = 0
-        if self._dbg_cnt < 10:
-            self.log(f"GID[{self._dbg_cnt}] = {gid[:120]}")
-            self._dbg_cnt += 1
-        # -------------------------------------------
-    
-        # ② 去重判断
         if gid in self.seen:
             return True
         self.seen.add(gid)
         self.new_cnt += 1
         return False
+
 
 
     # -------------------------
@@ -99,10 +98,18 @@ class CaijingWeather(BasicNewsRecipe):
         return br
 
     def postprocess_book(self, oeb, opts, log):
-        if getattr(self, 'new_cnt', 0) == 0:
+        # 统计真正进入 spine 的条目（封面 + 导读页之外）
+        content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
+        real_cnt = len(content_items)
+    
+        log.info(f"★ DEBUG: new_cnt={getattr(self, 'new_cnt', 0)}, real_cnt={real_cnt}")
+    
+        if real_cnt == 0:         # 既无 new_cnt 又无正文 → 视为“无新文章”
             if AbortRecipe:
                 raise AbortRecipe('No new articles')
             else:
                 self.abort_recipe_processing('No new articles')
+    
+        # —— 有文章才写缓存 —— 
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(self.seen), f)
