@@ -3,7 +3,7 @@ name: Calibre News Delivery
 on:
   schedule:
     # 每日北京时间 07:00 (= UTC 23:00) 运行
-    - cron:  '0 23 * * *'
+    - cron: '0 23 * * *'
   workflow_dispatch:      # 允许手动触发
 
 jobs:
@@ -14,33 +14,45 @@ jobs:
     # 0) 检出仓库
     - uses: actions/checkout@v4
 
-    # 1) 还原增量缓存
-    - uses: actions/cache@v4
+    # 0.5) **强制清空 state 目录，确保本次当作“第一次抓取”**
+    - name: Reset state dir
+      run: |
+        rm -rf state          # 完全删除旧缓存
+        mkdir -p state        # 重新建一个空目录
+        echo "✅ state 目录已重置"
+
+    # 1) 尝试恢复增量缓存（这次肯定 miss，因为我们刚删）
+    - uses: actions/cache/restore@v4
       with:
         path: state
         key: seen-json
 
-    # 2) 安装 Calibre CLI（官方 Ubuntu 源）
+    # 2) 安装 Calibre
     - name: Install Calibre CLI
       run: |
         sudo apt-get update
         sudo apt-get install -y calibre   # 提供 ebook-convert
 
-    # 3) 运行抓取 + 打包
+    # 3) **运行抓取 + 打包**（使用前面给你的 build.sh）
     - name: Build EPUB(s)
+      id: build-step             # 给步骤一个 id，便于后面引用
       run: |
         chmod +x build.sh
         ./build.sh
 
+    # 3.5) **列出 state/ 目录和里面的 seen.json** —— 方便你在日志里确认
+    - name: Show state dir
+      run: |
+        echo "::group::state 内容"
+        ls -lR state || true
+        echo "::endgroup::"
 
-
-    # 4) 保存最新增量缓存
+    # 4) 保存最新增量缓存（只有步骤成功才保存）
     - uses: actions/cache/save@v4
-      if: steps.build.outcome == 'success'
+      if: steps.build-step.outcome == 'success'
       with:
         path: state
-        key: seen-json
-
+        key: seen-jsonname: Calibre News Delivery
 
     # 5) 安装 rclone CLI Action 并复制文件
     - name: Copy EPUB to OneDrive
