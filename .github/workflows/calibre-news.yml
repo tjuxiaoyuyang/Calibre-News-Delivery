@@ -66,4 +66,4 @@ jobs:
           ls -l output || true                   # 可选：先列一下 output 方便 debug
           rclone copy output/ onedrive:CalibreNews --fast-list --verbose
         env:
-          RCLONE_CONFIG: ${{ secrets.RCLONE_CONF }}
+          RCLONE_CONFIG: ${{secrets.RCLONE_CONFIG}}
