@@ -52,7 +52,8 @@ jobs:
       if: steps.build-step.outcome == 'success'
       with:
         path: state
-        key: seen-json
+        key: seen-json-${{ github.run_id }}
+
 
     # 5) 安装 rclone CLI Action 并复制文件
     - name: Copy EPUB to OneDrive
