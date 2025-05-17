@@ -100,32 +100,32 @@ class CaijingWeather(BasicNewsRecipe):
         ]
         return br
 
-def postprocess_book(self, oeb, opts, log):
-    # 统计真正进入 spine 的条目（封面+导读页之外）
-    content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
-    real_cnt = len(content_items)
-    log.info(f"★ DEBUG: new_cnt={getattr(self, 'new_cnt', 0)}, real_cnt={real_cnt}")
-
-    # 判断是否应当生成电子书（Calibre 7推荐 real_cnt, Calibre 6可兼容new_cnt）
-    if real_cnt == 0:
-        log.info("★ DEBUG: No new articles in this run, aborting recipe gracefully.")
-        if AbortRecipe:
-            raise AbortRecipe('No new articles')
-        else:
-            self.abort_recipe_processing('No new articles')
-        # 即使没有新文章也尝试写空 seen.json
+    def postprocess_book(self, oeb, opts, log):
+        # 统计真正进入 spine 的条目（封面+导读页之外）
+        content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
+        real_cnt = len(content_items)
+        log.info(f"★ DEBUG: new_cnt={getattr(self, 'new_cnt', 0)}, real_cnt={real_cnt}")
+    
+        # 判断是否应当生成电子书（Calibre 7推荐 real_cnt, Calibre 6可兼容new_cnt）
+        if real_cnt == 0:
+            log.info("★ DEBUG: No new articles in this run, aborting recipe gracefully.")
+            if AbortRecipe:
+                raise AbortRecipe('No new articles')
+            else:
+                self.abort_recipe_processing('No new articles')
+            # 即使没有新文章也尝试写空 seen.json
+            try:
+                with open(STATE_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(list(self.seen), f)
+                log.info(f"★ DEBUG: Wrote {len(self.seen)} gids to {STATE_FILE} (empty, after abort)")
+            except Exception as e:
+                log.info(f"★ DEBUG: Failed to write seen.json after abort: {e}")
+            return
+    
+        # 有文章，正常写入 seen.json
         try:
             with open(STATE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(list(self.seen), f)
-            log.info(f"★ DEBUG: Wrote {len(self.seen)} gids to {STATE_FILE} (empty, after abort)")
+            log.info(f"★ DEBUG: Wrote {len(self.seen)} gids to {STATE_FILE}")
         except Exception as e:
-            log.info(f"★ DEBUG: Failed to write seen.json after abort: {e}")
-        return
-
-    # 有文章，正常写入 seen.json
-    try:
-        with open(STATE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(list(self.seen), f)
-        log.info(f"★ DEBUG: Wrote {len(self.seen)} gids to {STATE_FILE}")
-    except Exception as e:
-        log.info(f"★ DEBUG: Failed to write seen.json: {e}")
+            log.info(f"★ DEBUG: Failed to write seen.json: {e}")
