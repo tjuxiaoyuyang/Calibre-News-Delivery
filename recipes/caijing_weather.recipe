@@ -35,26 +35,59 @@ class CaijingWeather(BasicNewsRecipe):
     seen                   = set()
     new_cnt                = 0
 
-    feeds = [
-        ('36氪 • 24h 热榜',
-         'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
-        ('第一财经 • 最新', 'https://rsshub.app/yicai/latest'),
-        ('华尔街见闻 • 实时快讯-要闻', 'https://rsshub.app/wallstreetcn/live'),
-        ('工信部 • 文件公示', 'https://rsshub.app/gov/miit/wjgs'),
-        ('量子位 • 知乎专栏', 'https://rss.lilydjwg.me/zhihuzhuanlan/qbitai'),
-        ('虎嗅网 • 全部', 'https://rsshub.app/huxiu/article'),
-        ('雪球 • 今日话题', 'http://xueqiu.com/hots/topic/rss'),
-        ('Air-Level • 天津监测', 'https://rsshub.app/air-level/air/tianjin'),
-        ('Air-Level • 全国最优排行', 'https://rsshub.app/air-level/rank/best'),
-        ('香港天文台 • 全球地震', 'https://rsshub.app/hko/weather'),
-        ('天津天气 • 未来三天', 'https://rsshub.app/qweather/3days/天津'),
-        ('国家气象中心 • 日降水预报', 'https://rsshub.app/ncc-cma/cmdp/image/RPJQWQYZ'),
-        ('国家气象中心 • 部分云量预报', 'https://rsshub.app/ncc-cma/cmdp/image/BYYLJSLJPZYQHZ'),
-        ('东方财富 • 研究策略报告', 'https://rsshub.app/eastmoney/report/strategyreport'),
-        ('人民银行 • 工作论文', 'https://rsshub.app/gov/pbc/gzlw'),
-        ('前瞻网 • 分析师专栏', 'https://rsshub.app/qianzhan/analyst/column/all'),
-        ('知乎收藏', 'https://r.hhbboo.com/users/1/web_requests/497/zhihu-mgwft-dt-eifh2oduyf3i23ek.xml'),
-    ]
+# 去重整理后的RSS源链接和名称
+
+feeds = [
+    ('36氪 • 24h 热榜', 'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
+    ('工信部 • 文件公示', 'https://rsshub.app/gov/miit/wjgs'),
+    ('雪球 • 今日话题', 'http://xueqiu.com/hots/topic/rss'),
+    ('知乎收藏', 'https://r.hhbboo.com/users/1/web_requests/497/zhihu-mgwft-dt-eifh2oduyf3i23ek.xml'),
+    ('第一财经周刊', 'http://feedmaker.kindle4rss.com/feeds/CBNweekly2008.weixin.xml'),
+    ('三联生活周刊', 'http://feedmaker.kindle4rss.com/feeds/lifeweek.weixin.xml'),
+    ('单读', 'http://feedmaker.kindle4rss.com/feeds/dandureading.weixin.xml'),
+    ('华尔街见闻', 'http://feedmaker.kindle4rss.com/feeds/wallstreetcn.weixin.xml'),
+    ('每日经济新闻', 'http://feedmaker.kindle4rss.com/feeds/nbdnews.weixin.xml'),
+    ('warfalcon', 'http://feedmaker.kindle4rss.com/feeds/read01.weixin.xml'),
+    ('地球知识局', 'http://feedmaker.kindle4rss.com/feeds/diqiuzhishiju.weixin.xml'),
+    ('刘润', 'http://feedmaker.kindle4rss.com/feeds/runliu-pub.weixin.xml'),
+    ('新世相', 'http://feedmaker.kindle4rss.com/feeds/thefair2.weixin.xml'),
+    ('历史研习社', 'http://feedmaker.kindle4rss.com/feeds/mingqinghistory.weixin.xml'),
+    ('新京报书评周刊', 'http://feedmaker.kindle4rss.com/feeds/ibookreview.weixin.xml'),
+    ('半月谈', 'http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml'),
+    ('环球科学', 'http://feedmaker.kindle4rss.com/feeds/ScientificAmerican.weixin.xml'),
+    ('澎湃新闻', 'http://feedmaker.kindle4rss.com/feeds/thepapernews.weixin.xml'),
+    ('小道消息', 'http://feedmaker.kindle4rss.com/feeds/WebNotes.weixin.xml'),
+    ('虎嗅网', 'http://feedmaker.kindle4rss.com/feeds/huxiu_com.weixin.xml'),
+    ('经济观察网', 'http://feedmaker.kindle4rss.com/feeds/eeo.xml'),
+    ('中金在线', 'http://feedmaker.kindle4rss.com/feeds/cnfol-com.weixin.xml'),
+    ('豆瓣: 经典短篇阅读', 'http://feedmaker.kindle4rss.com/feeds/group_classicreading.douban.xml'),
+    ('FT中文网:今日焦点', 'http://feedmaker.kindle4rss.com/feeds/news.ftchinese.com.xml'),
+    ('FT中文网:十大热门文章', 'http://feedmaker.kindle4rss.com/feeds/hotstoryby7day.ftchinese.com.xml'),
+    ('BBC 中国', 'http://feedmaker.kindle4rss.com/feeds/cn-bbc.xml'),
+    ('南方周末', 'http://feedmaker.kindle4rss.com/feeds/hot.infzm.com.xml'),
+    ('丁香医生', 'http://feedmaker.kindle4rss.com/feeds/DingXiangYiSheng.weixin.xml'),
+    ('知乎日报', 'http://feedmaker.kindle4rss.com/feeds/zhihu-daily.xml'),
+    ('中国政府网 - 最新政策', 'https://rsshub.app/gov/zhengce/zuixin'),
+    ('新闻 | 半岛电视台今日最新资讯', 'https://rsshub.app/aljazeera/chinese/news'),
+    ('数据发布 - 国家统计局', 'https://rsshub.app/gov/stats/sj/zxfb'),
+    ('人民网-时政', 'http://www.people.com.cn/rss/politics.xml'),
+    ('China Research Center', 'http://www.chinacenter.net/feed/'),
+    ('忽左忽右', 'https://justpodmedia.com/rss/left-right.xml'),
+    ('上海书评', 'https://feedx.pw/rss/shanghaishuping.xml'),
+    ('人物', 'http://feedmaker.kindle4rss.com/feeds/renwumag1980.weixin.xml'),
+    ('果壳网', 'http://feedmaker.kindle4rss.com/feeds/Guokr42.weixin.xml'),
+]
+
+# 使用有序字典去重（保持顺序）
+from collections import OrderedDict
+feeds_cleaned = list(OrderedDict((link, name) for name, link in feeds_raw).items())
+
+# 转换回目标格式
+feeds_formatted = [(name, link) for link, name in feeds_cleaned]
+
+import pandas as pd
+import ace_tools as tools; tools.display_dataframe_to_user(name="去重整理后的RSS源", dataframe=pd.DataFrame(feeds_formatted, columns=["名称", "链接"]))
+
 
     def get_feeds(self):
         # Calibre ≥7 会清空 self.feeds，重载以返回类属性
