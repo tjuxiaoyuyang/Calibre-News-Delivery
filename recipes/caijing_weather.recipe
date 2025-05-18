@@ -24,7 +24,7 @@ os.makedirs(STATE_DIR, exist_ok=True)
 class CaijingWeather(BasicNewsRecipe):
     # —— 元信息 —— 
     title                  = '财经·天气（日增量）'
-    oldest_article         = 6
+    oldest_article         = 5
     max_articles_per_feed  = 10000
     ignore_failed_feeds    = True
     tries, sleep           = 3, 2
