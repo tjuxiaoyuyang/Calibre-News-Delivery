@@ -79,8 +79,8 @@ FEEDS_FORMATTED = [(name, link) for link, name in FEEDS_CLEANED]
 
 # ---------- Recipe ----------
 class CaijingWeather(BasicNewsRecipe):
-    title                 = "财经·天气（日增量）"
-    oldest_article        = 5
+    title                 = "rss日报"
+    oldest_article        = 1
     max_articles_per_feed = 10_000
     ignore_failed_feeds   = True
     tries, sleep          = 3, 2
