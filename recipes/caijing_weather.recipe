@@ -1,72 +1,94 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-CaijingWeather.recipe
-抓取一组财经/时政/科普类 RSS，每日增量生成 EPUB。兼容 Calibre 6 / 7，
-并支持 GitHub Actions 调用 ebook-convert。
+CaijingWeather.recipe – 财经·天气（日增量）
 """
 
 import os, json
 from collections import OrderedDict
+
 from calibre.web.feeds.news import BasicNewsRecipe
 try:
     from calibre.web.feeds.news import AbortRecipe
 except ImportError:
     AbortRecipe = None
 
-# ---------- 目录计算 ----------
+
+# ---------- 路径处理：Calibre exec(...) 时没有 __file__ ----------
 try:
-    BASE = os.path.abspath(os.path.dirname(__file__))
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 except NameError:
-    BASE = os.getcwd()
-STATE_DIR  = os.path.join(BASE, "state")
+    BASE_DIR = os.getcwd()
+
+STATE_DIR  = os.path.join(BASE_DIR, "state")
 STATE_FILE = os.path.join(STATE_DIR, "seen.json")
 os.makedirs(STATE_DIR, exist_ok=True)
 
 
-
-# -------------------------------------------------------------------
-# 2. 原始 feed 列表  (名称, 链接)
-# -------------------------------------------------------------------
+# ---------- 原始 RSS 列表 ----------
 FEEDS_RAW = [
-    ("36氪 • 24h 热榜", "https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901"),
-    ("工信部 • 文件公示", "https://rsshub.app/gov/miit/wjgs"),
-    ("雪球 • 今日话题",  "http://xueqiu.com/hots/topic/rss"),
-    # …… 其余源保持原样粘贴 ……
-    ("果壳网",           "http://feedmaker.kindle4rss.com/feeds/Guokr42.weixin.xml"),
+    ("36氪 • 24h 热榜",              "https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901"),
+    ("工信部 • 文件公示",            "https://rsshub.app/gov/miit/wjgs"),
+    ("雪球 • 今日话题",              "http://xueqiu.com/hots/topic/rss"),
+    ("知乎收藏",                    "https://r.hhbboo.com/users/1/web_requests/497/zhihu-mgwft-dt-eifh2oduyf3i23ek.xml"),
+    ("第一财经周刊",                "http://feedmaker.kindle4rss.com/feeds/CBNweekly2008.weixin.xml"),
+    ("三联生活周刊",                "http://feedmaker.kindle4rss.com/feeds/lifeweek.weixin.xml"),
+    ("单读",                        "http://feedmaker.kindle4rss.com/feeds/dandureading.weixin.xml"),
+    ("华尔街见闻",                  "http://feedmaker.kindle4rss.com/feeds/wallstreetcn.weixin.xml"),
+    ("每日经济新闻",                "http://feedmaker.kindle4rss.com/feeds/nbdnews.weixin.xml"),
+    ("warfalcon",                  "http://feedmaker.kindle4rss.com/feeds/read01.weixin.xml"),
+    ("地球知识局",                  "http://feedmaker.kindle4rss.com/feeds/diqiuzhishiju.weixin.xml"),
+    ("刘润",                        "http://feedmaker.kindle4rss.com/feeds/runliu-pub.weixin.xml"),
+    ("新世相",                      "http://feedmaker.kindle4rss.com/feeds/thefair2.weixin.xml"),
+    ("历史研习社",                  "http://feedmaker.kindle4rss.com/feeds/mingqinghistory.weixin.xml"),
+    ("新京报书评周刊",              "http://feedmaker.kindle4rss.com/feeds/ibookreview.weixin.xml"),
+    ("半月谈",                      "http://feedmaker.kindle4rss.com/feeds/banyuetan-weixin.weixin.xml"),
+    ("环球科学",                    "http://feedmaker.kindle4rss.com/feeds/ScientificAmerican.weixin.xml"),
+    ("澎湃新闻",                    "http://feedmaker.kindle4rss.com/feeds/thepapernews.weixin.xml"),
+    ("小道消息",                    "http://feedmaker.kindle4rss.com/feeds/WebNotes.weixin.xml"),
+    ("虎嗅网",                      "http://feedmaker.kindle4rss.com/feeds/huxiu_com.weixin.xml"),
+    ("经济观察网",                  "http://feedmaker.kindle4rss.com/feeds/eeo.xml"),
+    ("中金在线",                    "http://feedmaker.kindle4rss.com/feeds/cnfol-com.weixin.xml"),
+    ("豆瓣·经典短篇阅读",           "http://feedmaker.kindle4rss.com/feeds/group_classicreading.douban.xml"),
+    ("FT中文网·今日焦点",           "http://feedmaker.kindle4rss.com/feeds/news.ftchinese.com.xml"),
+    ("FT中文网·十大热门文章",       "http://feedmaker.kindle4rss.com/feeds/hotstoryby7day.ftchinese.com.xml"),
+    ("BBC 中文",                   "http://feedmaker.kindle4rss.com/feeds/cn-bbc.xml"),
+    ("南方周末",                    "http://feedmaker.kindle4rss.com/feeds/hot.infzm.com.xml"),
+    ("丁香医生",                    "http://feedmaker.kindle4rss.com/feeds/DingXiangYiSheng.weixin.xml"),
+    ("知乎日报",                    "http://feedmaker.kindle4rss.com/feeds/zhihu-daily.xml"),
+    ("中国政府网·最新政策",         "https://rsshub.app/gov/zhengce/zuixin"),
+    ("半岛电视台·今日最新资讯",      "https://rsshub.app/aljazeera/chinese/news"),
+    ("国家统计局·数据发布",         "https://rsshub.app/gov/stats/sj/zxfb"),
+    ("人民网·时政",                 "http://www.people.com.cn/rss/politics.xml"),
+    ("China Research Center",       "http://www.chinacenter.net/feed/"),
+    ("忽左忽右",                    "https://justpodmedia.com/rss/left-right.xml"),
+    ("上海书评",                    "https://feedx.pw/rss/shanghaishuping.xml"),
+    ("人物",                        "http://feedmaker.kindle4rss.com/feeds/renwumag1980.weixin.xml"),
+    ("果壳网",                      "http://feedmaker.kindle4rss.com/feeds/Guokr42.weixin.xml"),
 ]
 
-# 去重（按链接）并保持顺序
+# 去重保持顺序
 FEEDS_CLEANED   = list(OrderedDict((link, name) for name, link in FEEDS_RAW).items())
-FEEDS_FORMATTED = [(name, link) for link, name in FEEDS_CLEANED]   # Calibre 需要的格式
+FEEDS_FORMATTED = [(name, link) for link, name in FEEDS_CLEANED]
 
 
-# -------------------------------------------------------------------
-# 3. Recipe 主体
-# -------------------------------------------------------------------
+# ---------- Recipe ----------
 class CaijingWeather(BasicNewsRecipe):
     title                 = "财经·天气（日增量）"
-    oldest_article        = 5                     # 仅抓 5 天内旧文
+    oldest_article        = 5
     max_articles_per_feed = 10_000
     ignore_failed_feeds   = True
     tries, sleep          = 3, 2
     auto_cleanup, timeout = True, 60
     no_stylesheets        = True
-    feeds                 = FEEDS_FORMATTED      # 绑定到类属性
+    feeds                 = FEEDS_FORMATTED
 
-    # 运行期属性
-    seen: set[str] = set()
-    new_cnt: int   = 0
+    # 运行期状态
+    seen, new_cnt = set(), 0
 
-    # ---------------------------------------------------------------
-    # Calibre 7 会在实例化时清空 self.feeds，这里返回备份
-    # ---------------------------------------------------------------
     def get_feeds(self):
         return list(self.__class__.feeds)
 
-    # ---------------------------------------------------------------
-    # 生命周期
-    # ---------------------------------------------------------------
     def initialize(self):
         super().initialize()
         try:
@@ -74,8 +96,7 @@ class CaijingWeather(BasicNewsRecipe):
                 self.seen = set(json.load(fh))
         except Exception:
             self.seen = set()
-        self.new_cnt = 0
-        self.log(f"Init OK – {len(self.seen)} items previously seen")
+        self.log(f"Init OK – {len(self.seen)} articles previously seen")
 
     def skip_article(self, a):
         date = a.get("published") or a.get("updated") or a.get("pubDate") or ""
@@ -92,44 +113,36 @@ class CaijingWeather(BasicNewsRecipe):
         br.set_proxies({})
         br.addheaders += [
             ("User-Agent",
-             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-             "Chrome/124 Safari/537.36"),
+             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"),
             ("Accept-Encoding", "identity"),
         ]
         return br
 
     def postprocess_book(self, oeb, opts, log):
-        # 统计真正进入 spine 的条目
         real_cnt = len([i for i in oeb.spine if i.id not in ("cover", "masthead")])
         log.info(f"★ DEBUG → new_cnt={self.new_cnt}, real_cnt={real_cnt}")
 
-        # 没有新文章则优雅退出（CI 依旧算成功）
         if real_cnt == 0:
             msg = "No new articles"
             log.info(f"★ DEBUG → {msg}")
             if AbortRecipe:
                 raise AbortRecipe(msg)
-            else:                 # Calibre 6
+            else:
                 self.abort_recipe_processing(msg)
 
-        # 写回 seen.json
         try:
             with open(STATE_FILE, "w", encoding="utf-8") as fh:
                 json.dump(list(self.seen), fh)
-            log.info(f"★ DEBUG → Wrote {len(self.seen)} gids to {STATE_FILE}")
+            log.info(f"★ DEBUG → Wrote {len(self.seen)} gids to seen.json")
         except Exception as exc:
             log.info(f"★ DEBUG → Failed to write seen.json: {exc}")
 
 
-# -------------------------------------------------------------------
-# 4. 本地调试：python caijing_weather.recipe 时可查看表格
-#    在 Calibre / GitHub Actions 中不会触发 (__name__ ≠ "__main__")
-# -------------------------------------------------------------------
+# ---------- 本地调试 ----------
 if __name__ == "__main__":
     try:
-        import pandas as pd          # 本地如果没装也无所谓
+        import pandas as pd
         import ace_tools as tools
-
         tools.display_dataframe_to_user(
             name="去重后的 RSS 源",
             dataframe=pd.DataFrame(FEEDS_FORMATTED, columns=["名称", "链接"]),
