@@ -3,6 +3,7 @@
 
 import os
 import json
+from collections import OrderedDict
 from calibre.web.feeds.news import BasicNewsRecipe
 
 # —— 兼容 AbortRecipe —— 
