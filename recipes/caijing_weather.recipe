@@ -1,25 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import json
+import os, json
 from collections import OrderedDict
 from calibre.web.feeds.news import BasicNewsRecipe
-
-# —— 兼容 AbortRecipe —— 
 try:
     from calibre.web.feeds.news import AbortRecipe
 except ImportError:
     AbortRecipe = None
 
-# —— 计算 BASE 目录 —— 
+# ---------- 目录计算 ----------
 try:
     BASE = os.path.abspath(os.path.dirname(__file__))
 except NameError:
     BASE = os.getcwd()
-STATE_DIR  = os.path.join(BASE, 'state')
-STATE_FILE = os.path.join(STATE_DIR, 'seen.json')
+STATE_DIR  = os.path.join(BASE, "state")
+STATE_FILE = os.path.join(STATE_DIR, "seen.json")
 os.makedirs(STATE_DIR, exist_ok=True)
+
 
 
 class CaijingWeather(BasicNewsRecipe):
