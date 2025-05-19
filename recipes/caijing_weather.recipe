@@ -37,7 +37,7 @@ class CaijingWeather(BasicNewsRecipe):
 
 # 去重整理后的RSS源链接和名称
 
-feeds = [
+feeds_raw = [
     ('36氪 • 24h 热榜', 'https://rss.mifaw.com/articles/5c8bb11a3c41f61efd36683e/5c91d2e23882afa09dff4901'),
     ('工信部 • 文件公示', 'https://rsshub.app/gov/miit/wjgs'),
     ('雪球 • 今日话题', 'http://xueqiu.com/hots/topic/rss'),
@@ -78,45 +78,51 @@ feeds = [
     ('果壳网', 'http://feedmaker.kindle4rss.com/feeds/Guokr42.weixin.xml'),
 ]
 
-# 使用有序字典去重（保持顺序）
-from collections import OrderedDict
-feeds_cleaned = list(OrderedDict((link, name) for name, link in feeds_raw).items())
-
-# 转换回目标格式
-feeds_formatted = [(name, link) for link, name in feeds_cleaned]
-
-import pandas as pd
-import ace_tools as tools; tools.display_dataframe_to_user(name="去重整理后的RSS源", dataframe=pd.DataFrame(feeds_formatted, columns=["名称", "链接"]))
+# 按链接去重并保持顺序
+feeds_cleaned   = list(OrderedDict((link, name) for name, link in feeds_raw).items())
+feeds_formatted = [(name, link) for link, name in feeds_cleaned]  # Calibre 期望格式
 
 
+# ---------- 2. Calibre Recipe ----------
+BASE = os.path.abspath(os.path.dirname(__file__))
+STATE_DIR  = os.path.join(BASE, "state")
+STATE_FILE = os.path.join(STATE_DIR, "seen.json")
+os.makedirs(STATE_DIR, exist_ok=True)
+
+
+class CaijingWeather(BasicNewsRecipe):
+    # 元信息
+    title                 = "财经·天气（日增量）"
+    oldest_article        = 5
+    max_articles_per_feed = 10_000
+    ignore_failed_feeds   = True
+    tries, sleep          = 3, 2
+    auto_cleanup, timeout = True, 60
+    no_stylesheets        = True
+    feeds                 = feeds_formatted        # 直接挂在类属性上
+
+    # 运行时属性
+    seen, new_cnt = set(), 0
+
+    # ↓↓↓ 全部方法都保持相同缩进（类体内，4 个空格） ↓↓↓
     def get_feeds(self):
-        # Calibre ≥7 会清空 self.feeds，重载以返回类属性
+        # calibre ≥7 会清空 self.feeds；重载一下
         return list(self.__class__.feeds)
 
     def initialize(self):
         super().initialize()
         try:
-            with open(STATE_FILE, 'r', encoding='utf-8') as f:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
                 self.seen = set(json.load(f))
         except Exception:
             self.seen = set()
         self.new_cnt = 0
-        self.log(f'Init OK, seen {len(self.seen)} items; cwd={os.getcwd()}')
+        self.log(f"Init OK, seen {len(self.seen)} items")
 
     def skip_article(self, a):
-        # —— 调试：打印前 10 个 gid —— 
-        if not hasattr(self, '_dbg_cnt'):
-            self._dbg_cnt = 0
-        if self._dbg_cnt < 10:
-            self.log(f"DBG GID[{self._dbg_cnt}] title='{a.get('title')[:30]}' "
-                     f"link={a.get('link')}")
-            self._dbg_cnt += 1
-
-        # —— 拼唯一键：URL + 发布日期 —— 
-        date = a.get('published') or a.get('updated') or a.get('pubDate') or ''
-        url  = a.get('link') or a.get('id') or a.get('guid') or ''
+        date = a.get("published") or a.get("updated") or a.get("pubDate") or ""
+        url  = a.get("link") or a.get("id") or a.get("guid") or ""
         gid  = f"{url}||{date}" if date else f"{url}||{a.get('title')}"
-
         if gid in self.seen:
             return True
         self.seen.add(gid)
@@ -127,39 +133,41 @@ import ace_tools as tools; tools.display_dataframe_to_user(name="去重整理后
         br = super().get_browser()
         br.set_proxies({})
         br.addheaders += [
-            ('User-Agent',
-             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-             'Chrome/124 Safari/537.36'),
-            ('Accept-Encoding', 'identity'),
+            ("User-Agent",
+             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"),
+            ("Accept-Encoding", "identity"),
         ]
         return br
 
     def postprocess_book(self, oeb, opts, log):
-        # 统计真正进入 spine 的条目（封面+导读页之外）
-        content_items = [i for i in oeb.spine if i.id not in ('cover', 'masthead')]
-        real_cnt = len(content_items)
-        log.info(f"★ DEBUG: new_cnt={getattr(self, 'new_cnt', 0)}, real_cnt={real_cnt}")
-    
-        # 判断是否应当生成电子书（Calibre 7推荐 real_cnt, Calibre 6可兼容new_cnt）
+        real_cnt = len([i for i in oeb.spine if i.id not in ("cover", "masthead")])
+        log.info(f"★ DEBUG: new_cnt={self.new_cnt}, real_cnt={real_cnt}")
+
+        # 无新文章：优雅退出
         if real_cnt == 0:
             log.info("★ DEBUG: No new articles in this run, aborting recipe gracefully.")
             if AbortRecipe:
-                raise AbortRecipe('No new articles')
+                raise AbortRecipe("No new articles")
             else:
-                self.abort_recipe_processing('No new articles')
-            # 即使没有新文章也尝试写空 seen.json
-            try:
-                with open(STATE_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(list(self.seen), f)
-                log.info(f"★ DEBUG: Wrote {len(self.seen)} gids to {STATE_FILE} (empty, after abort)")
-            except Exception as e:
-                log.info(f"★ DEBUG: Failed to write seen.json after abort: {e}")
-            return
-    
-        # 有文章，正常写入 seen.json
+                self.abort_recipe_processing("No new articles")
+
+        # 有文章或无文章，都会写回 seen.json
         try:
-            with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            with open(STATE_FILE, "w", encoding="utf-8") as f:
                 json.dump(list(self.seen), f)
             log.info(f"★ DEBUG: Wrote {len(self.seen)} gids to {STATE_FILE}")
         except Exception as e:
             log.info(f"★ DEBUG: Failed to write seen.json: {e}")
+if __name__ == "__main__":
+    try:
+        import pandas as pd, ace_tools as tools
+        tools.display_dataframe_to_user(
+            name="去重整理后的 RSS 源",
+            dataframe=pd.DataFrame(feeds_formatted, columns=["名称", "链接"]),
+        )
+    except ImportError:
+        # CI 或 calibre 容器里没有这两个包 → 安静跳过
+        pass
+
+
+
