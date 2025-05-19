@@ -59,7 +59,7 @@ FEEDS_RAW = [
     ("地球知识局",                  "http://feedmaker.kindle4rss.com/feeds/diqiuzhishiju.weixin.xml"),
     ("小道消息",                    "http://feedmaker.kindle4rss.com/feeds/WebNotes.weixin.xml"),    
     ("Knowyourself",           "http://feedmaker.kindle4rss.com/feeds/knowyourself2015.weixin.xml"),
-    ("FT中文网·今日焦点",           "http://feedmaker.kindle4rss.com/feeds/news.ftchinese.com.xml"),
+    ("FT中文网·今日焦点",           "http://www.ftchinese.com/rss/feed"),
     ("FT中文网·十大热门文章",       "http://feedmaker.kindle4rss.com/feeds/hotstoryby7day.ftchinese.com.xml"),   
     ("南方周末",                    "http://feedmaker.kindle4rss.com/feeds/hot.infzm.com.xml"),
     ("丁香医生",                    "http://feedmaker.kindle4rss.com/feeds/DingXiangYiSheng.weixin.xml"),
