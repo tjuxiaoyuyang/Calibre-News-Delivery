@@ -6,28 +6,23 @@ CaijingWeather.recipe
 并支持 GitHub Actions 调用 ebook-convert。
 """
 
-import os
-import json
+import os, json
 from collections import OrderedDict
-
 from calibre.web.feeds.news import BasicNewsRecipe
-try:                              # Calibre 7+ 才有 AbortRecipe
+try:
     from calibre.web.feeds.news import AbortRecipe
 except ImportError:
     AbortRecipe = None
 
-
-# -------------------------------------------------------------------
-# 1. 路径：Calibre exec(src, {}) 时没有 __file__，需兜底
-# -------------------------------------------------------------------
+# ---------- 目录计算 ----------
 try:
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-except NameError:                 # 进入这里表示 __file__ 不存在
-    BASE_DIR = os.getcwd()
-
-STATE_DIR  = os.path.join(BASE_DIR, "state")
+    BASE = os.path.abspath(os.path.dirname(__file__))
+except NameError:
+    BASE = os.getcwd()
+STATE_DIR  = os.path.join(BASE, "state")
 STATE_FILE = os.path.join(STATE_DIR, "seen.json")
 os.makedirs(STATE_DIR, exist_ok=True)
+
 
 
 # -------------------------------------------------------------------
