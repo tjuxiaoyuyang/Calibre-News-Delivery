@@ -33,6 +33,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y calibre
+      #2.5  
+      # 清掉 Calibre 本地缓存（避免复用旧封面/旧模板）
+      - name: Purge Calibre caches
+        run: |
+          rm -rf ~/.cache/calibre || true
+          rm -rf ~/.config/calibre || true
+          rm -rf ~/.config/ebook-convert || true
+      
+      # 用北京时间导出构建日期（给 build.sh / recipe 用）
+      - name: Set timezone & export build date
+        run: |
+          sudo timedatectl set-timezone Asia/Shanghai
+          echo "BUILD_DATE=$(date +'%Y.%m.%d')" >> $GITHUB_ENV
+          echo "BUILD_ISO=$(date -Iseconds)" >> $GITHUB_ENV
 
       # 3) 运行抓取 + 打包
       - name: Build EPUB(s)
