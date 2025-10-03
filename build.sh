@@ -3,25 +3,24 @@ set -eo pipefail
 
 mkdir -p output
 
-# 固定参数：禁用默认封面，强制使用我们生成的封面图
-EXTRA_OPTS=(--no-default-epub-cover --cover output/cover.png)
-
+# 逐行读取，忽略空行和以 # 开头的注释行
 grep -Ev '^\s*($|#)' recipe_list.txt |
 while IFS=: read -r recipe outname; do
+  # —— 基本校验 ——
   if [[ -z "$recipe" || -z "$outname" ]]; then
     echo "::warning ::跳过格式不完整的行：'$recipe:$outname'"
     continue
   fi
 
-  echo "Convert $recipe -> output/$outname"
+  echo "Convert $recipe -> $outname"
   set +e
-  ebook-convert "$recipe" "output/$outname" "${EXTRA_OPTS[@]}"
+  ebook-convert "$recipe" "output/$outname"
   code=$?
   set -e
 
   case $code in
     0)  echo "✓ Success: $outname";;
-    1)  echo "ℹ 无新文章：$recipe";;
+    1)  echo "ℹ 无新文章：$recipe";;      # AbortRecipe
     *)  echo "::error ::ebook-convert exit $code on $recipe"
         exit "$code"
         ;;
